@@ -67,7 +67,7 @@ void loop() {
   String fullweatherUrl = String(weatherUrl1) + loc[0] + String(weatherUrl2) + loc[1] + String(weatherUrl3);
   weaData = getHTML(fullweatherUrl.c_str());
   JSONVar myObject = JSON.parse(weaData);
-  String weaType = myObject["weather"]["main"];
+  String weaType = myObject["weather"][0]["main"];
   Serial.println(weaType);
 
   delay(10000);
