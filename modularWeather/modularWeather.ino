@@ -5,7 +5,7 @@
 #include <Arduino_JSON.h>
 
 const char* ssid = "UoB-IoT";    
-const char* password = "mhczaw4z"; // password for this mac address
+const char* password = "rt9crsw5"; // password for this mac address
 const char* baseLocUrl = "https://api.ip2location.io/?key=AC1CDE03F2C2BF7AA758D9C65EBD9A0D&ip=";
 const char* weatherUrl1 = "https://api.openweathermap.org/data/2.5/weather?lat=";
 const char* weatherUrl2 = "&lon=";
@@ -15,6 +15,25 @@ String ip;
 String locData;
 double loc[2];
 String weaData;
+String weaType;
+String dayNight;
+//1 = blue sun
+//2 = white cloud
+//3 = blue rain
+//4 = green wind 
+//5 = white moon
+//6 = blue snow
+int sun = 1;
+int cloud = 2;
+int rain = 3;
+int wind = 4;
+int moon = 5;
+int snow = 6;
+int switchPin = 7;
+
+
+unsigned long prevBlink = 0;
+const long interval = 1000*10;
 
 
 void connect(){
@@ -50,9 +69,76 @@ String getHTML(const char* url) {
   }
 }
 
+void doWeather(){
+  String fullweatherUrl = String(weatherUrl1) + loc[0] + String(weatherUrl2) + loc[1] + String(weatherUrl3);
+  weaData = getHTML(fullweatherUrl.c_str());
+  JSONVar myObject = JSON.parse(weaData);
+  String weaIcon = myObject["weather"][0]["icon"];
+  Serial.println(weaIcon);
+  weaType = weaIcon.substring(0,2);
+  dayNight = weaIcon.substring(2,3);
+
+  digitalWrite(sun, LOW);
+  digitalWrite(cloud, LOW);
+  digitalWrite(rain, LOW);
+  digitalWrite(wind, LOW);
+  digitalWrite(moon, LOW);
+  digitalWrite(snow, LOW);
+
+  if (weaType == "01") {
+    Serial.println("sun");
+    digitalWrite(sun, HIGH);
+  } else if (weaType == "02") {
+    Serial.println("sun");
+    Serial.println("cloud");
+    digitalWrite(sun, HIGH);
+    digitalWrite(cloud, HIGH);
+  } else if (weaType == "03" || weaType == "04") {
+    Serial.println("cloud");
+    digitalWrite(cloud, HIGH);
+  } else if (weaType == "09") {
+    Serial.println("cloud");
+    Serial.println("rain");
+    digitalWrite(cloud, HIGH);
+    digitalWrite(rain, HIGH);
+  } else if (weaType == "10" || weaType == "11") {
+    Serial.println("sun");
+    Serial.println("cloud");
+    Serial.println("rain");
+    digitalWrite(sun, HIGH);
+    digitalWrite(cloud, HIGH);
+    digitalWrite(rain, HIGH);
+  } else if (weaType == "13" || weaType == "50") {
+    Serial.println("snow");
+    digitalWrite(snow, HIGH);
+    digitalWrite(cloud, HIGH);
+  } else {
+    // Handle the default case here
+  }
+
+  if (dayNight == "d") {
+    Serial.println("Day");
+    digitalWrite(sun, HIGH);
+  } else if (dayNight == "n") {
+    Serial.println("Night");
+    digitalWrite(moon, HIGH);
+  } else {
+    // Handle the default case here
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   connect();
+
+  pinMode(sun, OUTPUT);
+  pinMode(cloud, OUTPUT);
+  pinMode(rain, OUTPUT);
+  pinMode(wind, OUTPUT);
+  pinMode(moon, OUTPUT);
+  pinMode(snow, OUTPUT);
+  pinMode(switchPin, INPUT);
+
 
   String fullLocUrl = String(baseLocUrl) + ip;
   locData = getHTML(fullLocUrl.c_str());
@@ -62,13 +148,13 @@ void setup() {
   Serial.println(loc[0]);
 }
 
-
 void loop() {
-  String fullweatherUrl = String(weatherUrl1) + loc[0] + String(weatherUrl2) + loc[1] + String(weatherUrl3);
-  weaData = getHTML(fullweatherUrl.c_str());
-  JSONVar myObject = JSON.parse(weaData);
-  String weaType = myObject["weather"][0]["main"];
-  Serial.println(weaType);
+  unsigned long currentMillis = millis();
 
-  delay(10000);
+  if (currentMillis - previousMillis >= interval) {
+    // save the last time you blinked the LED
+    previousMillis = currentMillis;
+
+    doWeather();
+  }
 }
